@@ -114,8 +114,9 @@ class OptionIndex:
         return labels, scores, meta
 
     # --- Semantic tier (T3) -------------------------------------------------
+    @classmethod
     def fit_semantic(
-        self,
+        cls,
         options: list[str],
         embed_fn: "Callable[[list[str]], np.ndarray]",
         dims: int = 2048,

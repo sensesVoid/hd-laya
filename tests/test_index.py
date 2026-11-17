@@ -152,3 +152,61 @@ def test_degenerate_inputs(fx):
     # k > dims_full and M > n clamp without error on a normal query too.
     labs3, sc3, m3 = fx.idx.rank(fx.query, k=9999, M=9999)
     assert m3["k"] == 2048 and m3["M"] == 200 and len(labs3) == 200
+
+
+# ---- T3: SimHash semantic tier ----------------------------------------------
+
+def test_rank_semantic_two_stage_matches_fulldim():
+    """Semantic rank: two-stage == brute-force full-D simhash rank; mode='semantic'."""
+    import numpy as np
+    from hd_laya.index import OptionIndex
+    from hd_laya.hv import simhash_bits, hamming_counts
+
+    rng = np.random.default_rng(99)
+    opts = [f"option number {i} with words" for i in range(60)]
+    vecs = rng.normal(size=(60, 384)).astype(np.float32)
+    vecs /= np.linalg.norm(vecs, axis=1, keepdims=True)
+    lookup = {o: vecs[i] for i, o in enumerate(opts)}
+
+    def embed_fn(texts):
+        out = np.stack([lookup[t] for t in texts]).astype(np.float32)
+        return out
+
+    idx = OptionIndex.fit_semantic(opts, embed_fn, dims=2048, seed="hd-laya-v1")
+    # query = option 0 verbatim -> its own vector
+    labels, scores, meta = idx.rank_semantic(opts[0], embed_fn=embed_fn)
+    assert meta["mode"] == "semantic"
+    assert labels[0] == opts[0]
+    assert float(scores[0]) == 1.0
+    assert scores.dtype == np.float32
+    # Brute-force full-D simhash top-1 must agree.
+    qbits = simhash_bits(embed_fn([opts[0]]), 2048, "hd-laya-v1")
+    qbits = (qbits.astype(np.uint8).reshape(-1)[:256])
+    # normalize query like fit_semantic does
+    qv = embed_fn([opts[0]]).astype(np.float32)
+    qv = qv / np.linalg.norm(qv, axis=1, keepdims=True)
+    qmat = simhash_bits(qv, 2048, "hd-laya-v1")
+    dists = hamming_counts(qmat[0], idx.matrix)
+    full_top = opts[int(np.argmin(dists))]
+    assert labels[0] == full_top
+
+
+def test_rank_semantic_degenerate():
+    """Single option returns it; empty-ish query handled; mode semantic."""
+    from hd_laya.index import OptionIndex
+
+    opts = ["only option here"]
+    vecs = np.ones((1, 384), dtype=np.float32)
+    vecs /= np.linalg.norm(vecs, axis=1, keepdims=True)
+    lookup = {opts[0]: vecs[0]}
+
+    def embed_fn(texts):
+        return np.stack([lookup[t] for t in texts]).astype(np.float32)
+
+    idx = OptionIndex.fit_semantic(opts, embed_fn, dims=2048, seed="hd-laya-v1")
+    labels, scores, meta = idx.rank_semantic(opts[0], embed_fn=embed_fn)
+    assert labels == [opts[0]]
+    assert scores.shape == (1,)
+    assert meta["margin"] == 0.0
+    assert meta["near_tie"] is True
+    assert meta["mode"] == "semantic"

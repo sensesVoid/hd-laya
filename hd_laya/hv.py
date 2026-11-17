@@ -59,3 +59,25 @@ def hamming_counts(q: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     xor = np.bitwise_xor(q[:, np.newaxis, :], matrix[np.newaxis, :, :])
     counts = _LUT[xor].sum(axis=-1, dtype=np.uint16)
     return counts[0] if single else counts
+
+
+def simhash_bits(emb: np.ndarray, dims: int, seed: str = DEFAULT_SEED) -> np.ndarray:
+    """Seeded SimHash: rademacher projection of float embeddings -> packed bits.
+
+    Projection matrix R (d_in, dims) of +/-1 drawn from one seeded stream
+    (np.random.default_rng over the first 8 bytes of sha256(seed)); bits =
+    (emb @ R) > 0, packed MSB-first. Measured (probe 3): Hamming rank of
+    these bits == float-cosine rank at >= 2048 bits within near-ties.
+    """
+    if dims % 8 != 0:
+        raise ValueError("dims must be a multiple of 8")
+    emb = np.asarray(emb, dtype=np.float32)
+    if emb.ndim == 1:
+        emb = emb.reshape(1, -1)
+    d_in = emb.shape[1]
+    rng = np.random.default_rng(
+        int.from_bytes(hashlib.sha256(seed.encode("utf-8")).digest()[:8], "little")
+    )
+    R = rng.choice(np.array([-1, 1], dtype=np.int8), size=(d_in, dims))
+    bits = (emb @ R.astype(np.float32)) > 0
+    return pack_bits(bits)

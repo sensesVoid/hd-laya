@@ -49,3 +49,41 @@ def test_hamming_scan_matches_reference():
     single = hamming_counts(queries[0], matrix)
     assert single.dtype == np.uint16 and single.shape == (50,)
     assert np.array_equal(single, got[0])
+
+
+# ---- T3: SimHash semantic tier ------------------------------------------------
+
+from hd_laya.hv import simhash_bits
+
+
+def test_simhash_preserves_cosine_top1():
+    """SimHash Hamming rank == float cosine rank at 2048 bits (probe 3 law)."""
+    rng = np.random.default_rng(42)
+    V = rng.normal(size=(50, 384)).astype(np.float32)
+    V /= np.linalg.norm(V, axis=1, keepdims=True)
+    q = (V[0] + 0.05 * rng.normal(size=384).astype(np.float32))
+    q /= np.linalg.norm(q)
+    bits = simhash_bits(np.vstack([V, q]), 2048, "hd-laya-v1")
+    dists = hamming_counts(bits[-1], bits[:-1])
+    assert int(np.argmin(dists)) == 0  # stored vec0 is nearest
+
+
+def test_simhash_deterministic():
+    """Same seed -> identical packed bytes; different seed -> different bytes."""
+    rng = np.random.default_rng(7)
+    V = rng.normal(size=(8, 384)).astype(np.float32)
+    a = simhash_bits(V, 2048, "hd-laya-v1")
+    b = simhash_bits(V, 2048, "hd-laya-v1")
+    c = simhash_bits(V, 2048, "other-seed")
+    assert np.array_equal(a, b)
+    assert not np.array_equal(a, c)
+
+
+def test_simhash_dims_guard():
+    """Non-multiple-of-8 dims raises ValueError."""
+    V = np.zeros((2, 16), dtype=np.float32)
+    try:
+        simhash_bits(V, 1003, "s")
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for dims=1003")
