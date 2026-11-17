@@ -39,6 +39,12 @@ def _state_text(state: Any) -> str:
 
 
 class HDLayaAgent:
+    """HDC-aware adapter over an upstream laya Agent.
+
+    calib: maintained from answered decisions; consumed externally (e.g. for
+    diagnostics); decide() uses the fixed z_bar.
+    """
+
     def __init__(
         self,
         agent: Any,
@@ -69,8 +75,7 @@ class HDLayaAgent:
         texts = [f"{lbl}: {criteria[lbl]}" for lbl in labels]
         idx = OptionIndex.fit(texts, seed=self.index_seed)
         top_texts, _scores, meta = idx.rank(state_text, k=1024, M=self.max_options)
-        text_to_label = {t: lbl for t, lbl in zip(texts, labels)}
-        narrowed_labels = [text_to_label[t] for t in top_texts]
+        narrowed_labels = [labels[texts.index(t)] for t in top_texts]
         narrowed_criteria = {lbl: criteria[lbl] for lbl in narrowed_labels}
         new_qdef = dict(qdef)
         new_qdef["criteria"] = narrowed_criteria
@@ -103,7 +108,8 @@ class HDLayaAgent:
 
         result = self.agent.predict(state, narrowed)
         result = dict(result) if isinstance(result, dict) else {"answers": result}
-        answers = result.setdefault("answers", {})
+        result["answers"] = result.get("answers") or {}
+        answers = result["answers"]
         z_map: Dict[str, float] = {}
         refused: List[str] = []
         for qid, qdef in (questions or {}).items():
@@ -133,10 +139,11 @@ class HDLayaAgent:
             else:
                 ans["refused"] = False
                 # Keep the calibration stream fed only from answered decisions.
-                try:
-                    self.calib.update(float(z) if np.isfinite(z) else 0.0)
-                except Exception:
-                    pass
+                if np.isfinite(z):
+                    try:
+                        self.calib.update(float(z))
+                    except ValueError:
+                        pass
 
         result["meta"] = {
             "hd_index": hd_index,

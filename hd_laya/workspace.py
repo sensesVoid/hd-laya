@@ -82,6 +82,8 @@ class Workspace:
         if len(roles) != len(fillers):
             raise ValueError("roles and fillers must have the same length")
         existing = self._buffers.get(key)
+        if existing is None and sign < 0:
+            raise KeyError(f"no buffer for key {key!r} (never written)")
         work = existing.copy() if existing is not None else np.zeros(self.dims, dtype=np.int16)
         for role, filler in zip(roles, fillers):
             bound = self._bound(role, filler)

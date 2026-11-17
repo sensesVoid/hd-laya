@@ -28,7 +28,7 @@ def _predicted_label(result: Dict[str, Any], qid: str) -> Any:
         return ans
     if ans.get("refused"):
         return None
-    return ans.get("choice", ans.get("score", ans.get("noul")))
+    return ans.get("choice", ans.get("label", ans.get("prediction", ans.get("score", ans.get("noul")))))
 
 
 def run_benchmark(
@@ -53,8 +53,11 @@ def run_benchmark(
         questions = make_questions(item)
         result = agent.predict(item.state, questions)
         pred = _predicted_label(result, question_id)
-        is_refused = pred is None and isinstance(result.get("answers", {}).get(question_id, {}), dict) \
-            and result["answers"][question_id].get("refused") is True
+        ans_dict = result.get("answers", {}).get(question_id, {}) if isinstance(result.get("answers"), dict) else {}
+        meta_refused = (result.get("meta") or {}).get("refused", []) if isinstance(result, dict) else []
+        is_refused = (question_id in (meta_refused or [])) or (
+            pred is None and isinstance(ans_dict, dict) and ans_dict.get("refused") is True
+        )
         if is_refused:
             refused += 1
         else:

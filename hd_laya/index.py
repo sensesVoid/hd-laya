@@ -143,6 +143,11 @@ class OptionIndex:
         M: int = 64,
         embed_fn: "Optional[Callable[[list[str]], np.ndarray]]" = None,
     ) -> tuple[list[str], np.ndarray, dict]:
+        """Rank options using the semantic (simhash) tier.
+
+        When ``embed_fn`` is None, degrades to the exact tier (calls ``rank``)
+        and reports ``mode="exact"`` in the returned meta.
+        """
         # Semantic tier needs an embedder for the query side; if none given,
         # fall back to treating the stored matrix as the query's HV source by
         # encoding the query text with the exact recipe (degrades to exact tier).

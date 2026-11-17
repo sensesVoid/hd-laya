@@ -114,3 +114,32 @@ def test_predict_state_text_conversion():
     res = agent.predict({"user": "hi", "msg": "hello"}, qs)
     assert fa.call_count == 1
     assert "answers" in res
+
+
+def test_narrow_choice_duplicate_texts_dont_crash():
+    """Duplicate generated option texts must not crash (F2)."""
+    fa = FakeAgent(mode="clear")
+    agent = HDLayaAgent(fa, max_options=3, z_bar=0.0)
+    crit = {}
+    crit["a"] = "b: c"
+    crit["a: b"] = "c"  # generates same text as above
+    for i in range(2, 25):
+        crit[f"opt_{i}"] = f"desc {i}"
+    qs = {"q1": {"type": "choice", "instructions": "pick", "criteria": crit}}
+    res = agent.predict("state text", qs)
+    assert fa.call_count == 1
+    assert "answers" in res
+    hd = res["meta"]["hd_index"]["q1"]
+    assert hd["narrowed"] is True
+
+
+def test_calib_skips_non_finite_z():
+    """Non-finite z is not folded into calib (F4)."""
+    from hd_laya.zgate import StreamingCalib
+    fa = FakeAgent(mode="clear")
+    calib = StreamingCalib()
+    agent = HDLayaAgent(fa, max_options=20, z_bar=0.0, calib=calib)
+    qs = {"q1": {"type": "choice", "instructions": "x", "criteria": {"only": "desc"}}}
+    agent.predict("state", qs)
+    # single score -> z = inf (non-finite) -> not fed
+    assert calib.count() == 0

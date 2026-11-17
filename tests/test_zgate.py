@@ -37,6 +37,15 @@ def test_z_edge_cases():
         z_from_scores([0.6, float("nan"), 0.2])
     with pytest.raises(ValueError):
         z_from_scores([float("inf"), 0.2])
+    # 2-D input raises ValueError (F7)
+    with pytest.raises(ValueError):
+        z_from_scores([[0.1, 0.2], [0.3, 0.4]])
+
+
+def test_z_from_scores_2d_raises():
+    """F7: z_from_scores requires 1-D input."""
+    with pytest.raises(ValueError):
+        z_from_scores([[1.0, 2.0], [3.0, 4.0]])
 
 
 def test_welford_matches_numpy():

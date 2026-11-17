@@ -43,6 +43,16 @@ def test_write_erase_exact_undo():
     assert np.array_equal(ws.activate("B"), np.zeros(2048, dtype=np.int16))
     with pytest.raises(KeyError):
         ws.activate("never-written")
+    # erase on a never-written key also raises KeyError (F1)
+    with pytest.raises(KeyError):
+        ws.erase("never-written", ["r"], ["f"])
+
+
+def test_erase_never_written_raises_keyerror():
+    """F1: erase() on a never-written key raises KeyError."""
+    ws = Workspace(dims=2048)
+    with pytest.raises(KeyError):
+        ws.erase("no-such-key", ["r"], ["f"])
 
 
 def test_overflow_refused_atomic():

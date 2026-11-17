@@ -34,6 +34,8 @@ def z_from_scores(scores: "np.ndarray | list[float]") -> float:
     input score raises ValueError.
     """
     arr = np.asarray(scores, dtype=float)
+    if arr.ndim != 1:
+        raise ValueError("scores must be 1-D")
     if not np.isfinite(arr).all():
         raise ValueError("scores must all be finite")
     if arr.size < 2:
