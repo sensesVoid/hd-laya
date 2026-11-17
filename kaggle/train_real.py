@@ -20,7 +20,8 @@ SMOKE = os.environ.get("SMOKE", "0") == "1"
 OUT_DIR = os.environ.get("OUT_DIR", "./out")
 TRAIN_STEPS = int(os.environ.get("TRAIN_STEPS", "50" if SMOKE else "500"))
 K = int(os.environ.get("K", "20" if SMOKE else "77"))
-N_ITEMS = int(os.environ.get("N_ITEMS", "16" if SMOKE else "256"))
+N_ITEMS = int(os.environ.get("N_ITEMS", "16" if SMOKE else "512"))
+EPOCHS = int(os.environ.get("EPOCHS", "1" if SMOKE else "4"))
 MAX_LEN = int(os.environ.get("MAX_LEN", "256" if SMOKE else "512"))
 HEAD_MAX_LEN = int(os.environ.get("HEAD_MAX_LEN", "64" if SMOKE else "192"))
 
@@ -63,7 +64,7 @@ def run():
     if not items:
         raise RuntimeError("no valid training items")
 
-    epochs = 1
+    epochs = EPOCHS
     config = TrainConfig(
         epochs=epochs,
         micro_batch=2 if SMOKE else 4,
@@ -107,8 +108,11 @@ def run():
     print(f"Training done: {len(losses)} steps, final loss={losses[-1] if losses else 'n/a'}")
 
     os.makedirs(OUT_DIR, exist_ok=True)
+    # Save only trainable params (head + projections), not the frozen encoder.
+    trainable_sd = {k: v for k, v in model.state_dict().items()
+                    if not k.startswith("encoder.")}
     ckpt_path = os.path.join(OUT_DIR, "hd_laya_trained.pt")
-    torch.save({"state_dict": model.state_dict(), "losses": losses, "K": K, "n_items": len(items)}, ckpt_path)
+    torch.save({"state_dict": trainable_sd, "losses": losses, "K": K, "n_items": len(items)}, ckpt_path)
     print(f"Checkpoint saved: {ckpt_path}")
 
 
