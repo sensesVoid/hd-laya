@@ -1,0 +1,109 @@
+{
+  "seed": "hd-laya-v1",
+  "options": [
+    "password code item wrong",
+    "track refund",
+    "delivery password",
+    "code login charge pickup",
+    "verify account paid",
+    "delivery reset",
+    "return address",
+    "refund ready pickup",
+    "ship track billing refund",
+    "track wrong email",
+    "return refund refund",
+    "refund reset",
+    "password item login",
+    "return email charge delivery",
+    "return reset paid password",
+    "reset store return billing",
+    "account store",
+    "verify color wrong label",
+    "store billing track",
+    "verify color reset account",
+    "size store",
+    "code size ready",
+    "size billing item",
+    "store password",
+    "track color",
+    "return ready size late",
+    "billing track cancel reset",
+    "account order address",
+    "billing delivery store",
+    "ready cancel",
+    "return charge ship",
+    "track password account invoice",
+    "invoice reset",
+    "ship pickup paid cancel",
+    "password package code",
+    "ready invoice return",
+    "email paid ship",
+    "cancel label paid",
+    "color charge login",
+    "refund email address pickup",
+    "code label verify",
+    "ready track",
+    "wrong pickup pickup",
+    "invoice paid ship package",
+    "pickup charge",
+    "reset charge billing refund",
+    "billing track",
+    "delivery paid color order",
+    "charge color billing",
+    "delivery late email"
+  ],
+  "queries": [
+    "apssword code item wrong",
+    "erturn refund refund",
+    "isze store",
+    "erturn charge ship",
+    "ocde label verify"
+  ],
+  "cases": [
+    {
+      "query": "apssword code item wrong",
+      "top1": "password code item wrong",
+      "top2_scores": [
+        0.850098,
+        0.608398
+      ],
+      "margin": 0.241699
+    },
+    {
+      "query": "erturn refund refund",
+      "top1": "return refund refund",
+      "top2_scores": [
+        0.85498,
+        0.744141
+      ],
+      "margin": 0.11084
+    },
+    {
+      "query": "isze store",
+      "top1": "size store",
+      "top2_scores": [
+        0.756348,
+        0.646973
+      ],
+      "margin": 0.109375
+    },
+    {
+      "query": "erturn charge ship",
+      "top1": "return charge ship",
+      "top2_scores": [
+        0.82373,
+        0.646973
+      ],
+      "margin": 0.176758
+    },
+    {
+      "query": "ocde label verify",
+      "top1": "code label verify",
+      "top2_scores": [
+        0.790039,
+        0.643066
+      ],
+      "margin": 0.146973
+    }
+  ]
+}
