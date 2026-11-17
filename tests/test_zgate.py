@@ -76,3 +76,12 @@ def test_calib_bar_never_below_default():
         large.update(float(z))
     assert large.bar() == large.mean() + 2.0 * large.std()
     assert large.bar() > 5.0
+
+
+def test_z_order_independent():
+    """z_from_scores does not assume descending input (T5 minor)."""
+    from hd_laya.zgate import z_from_scores, decide
+    a = z_from_scores([0.05, 0.9, 0.05])
+    b = z_from_scores([0.9, 0.05, 0.05])
+    assert a == b
+    assert decide(a, 5.0) == "answer"

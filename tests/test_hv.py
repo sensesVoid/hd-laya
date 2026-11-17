@@ -87,3 +87,13 @@ def test_simhash_dims_guard():
     except ValueError:
         return
     raise AssertionError("expected ValueError for dims=1003")
+
+
+def test_pack_msb_first_known_pattern():
+    """MSB-first is pinned by a known one-byte pattern (closes T1 minor)."""
+    bits = np.array([0, 1, 1, 1, 0, 0, 0, 0], dtype=bool)
+    packed = pack_bits(bits)
+    assert packed.tolist() == [0b01110000]
+    # multi-byte: first bit of second byte lands in its MSB
+    bits2 = np.array([0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0], dtype=bool)
+    assert pack_bits(bits2).tolist() == [0b00000001, 0b10000000]

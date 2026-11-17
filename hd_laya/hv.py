@@ -53,6 +53,12 @@ def hamming_counts(q: np.ndarray, matrix: np.ndarray) -> np.ndarray:
     """
     q = np.asarray(q, dtype=np.uint8)
     matrix = np.asarray(matrix, dtype=np.uint8)
+    if q.ndim not in (1, 2):
+        raise ValueError("q must be 1-D (B,) or 2-D (Q, B)")
+    if matrix.ndim != 2:
+        raise ValueError("matrix must be 2-D (N, B)")
+    if q.shape[-1] != matrix.shape[1]:
+        raise ValueError("q and matrix must agree on the packed byte width")
     single = q.ndim == 1
     if single:
         q = q[np.newaxis, :]

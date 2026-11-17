@@ -32,3 +32,4 @@ include = ["hd_laya*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = ["ignore::pytest.PytestRemovedIn10Warning"]

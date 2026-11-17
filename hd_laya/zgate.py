@@ -68,6 +68,8 @@ class StreamingCalib:
     def update(self, x: float) -> None:
         """Fold one value in with the Welford recurrence (O(1), exact pass)."""
         x = float(x)
+        if not (x == x and x != float('inf') and x != float('-inf')):
+            raise ValueError('StreamingCalib.update requires a finite value')
         self._n += 1
         delta = x - self._mean
         self._mean += delta / self._n
