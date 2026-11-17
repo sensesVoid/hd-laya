@@ -18,7 +18,15 @@ from __future__ import annotations
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure hd_laya is available on Kaggle (not bundled with the script).
+try:
+    import hd_laya
+except ImportError:
+    import subprocess
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q',
+                   'git+https://github.com/sensesVoid/hd-laya.git@feat/v10-trained'], check=False)
+
 
 
 def _cuda_available():
@@ -52,7 +60,7 @@ def build_tiny_head(d_in: int = 32, d_model: int = 16, k: int = 2, n_classes: in
 
 def run_smoke():
     torch.manual_seed(0)
-    dev = torch.device("cpu")
+    dev = torch.device(DEVICE if (DEVICE == "cpu" or _cuda_available()) else "cpu")
     head = build_tiny_head().to(dev)
     opt = torch.optim.Adam(head.parameters(), lr=1e-3)
     x = torch.randn(4, 32, device=dev)
