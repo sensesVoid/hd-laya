@@ -1,0 +1,136 @@
+{
+ "probe": "5-headupdate-kaggle",
+ "env": {
+  "torch": "2.11.0+cu130",
+  "cuda_visible": 2,
+  "gpus": [
+   "Tesla T4",
+   "Tesla T4"
+  ],
+  "cpu_threads": 2
+ },
+ "devices": [
+  {
+   "device": "cuda:0",
+   "head_params_m": 26.512131,
+   "rows": [
+    {
+     "seq": 192,
+     "batch": 1,
+     "update_ms": 22.629957499987086,
+     "updates_per_s": 44.18921246319489
+    },
+    {
+     "seq": 192,
+     "batch": 8,
+     "update_ms": 71.13363149997554,
+     "updates_per_s": 14.05804791507578
+    },
+    {
+     "seq": 192,
+     "batch": 32,
+     "update_ms": 250.5293299999778,
+     "updates_per_s": 3.9915486142883494
+    },
+    {
+     "seq": 512,
+     "batch": 1,
+     "update_ms": 31.832925999992767,
+     "updates_per_s": 31.414014533261167
+    },
+    {
+     "seq": 512,
+     "batch": 8,
+     "update_ms": 191.5851235000332,
+     "updates_per_s": 5.219611949671169
+    },
+    {
+     "seq": 512,
+     "batch": 32,
+     "update_ms": 750.7362709999938,
+     "updates_per_s": 1.3320256908168064
+    },
+    {
+     "seq": 1024,
+     "batch": 1,
+     "update_ms": 62.574215499978436,
+     "updates_per_s": 15.981023365771875
+    },
+    {
+     "seq": 1024,
+     "batch": 8,
+     "update_ms": 442.93568349999646,
+     "updates_per_s": 2.25766411976155
+    },
+    {
+     "seq": 1024,
+     "batch": 32,
+     "update_ms": 1828.3750855000278,
+     "updates_per_s": 0.5469337270730299
+    }
+   ],
+   "vram_mb": 6258.533888
+  },
+  {
+   "device": "cuda:1",
+   "head_params_m": 26.512131,
+   "rows": [
+    {
+     "seq": 192,
+     "batch": 1,
+     "update_ms": 24.827569500018853,
+     "updates_per_s": 40.27780488135339
+    },
+    {
+     "seq": 192,
+     "batch": 8,
+     "update_ms": 72.84309600001393,
+     "updates_per_s": 13.728136980885722
+    },
+    {
+     "seq": 192,
+     "batch": 32,
+     "update_ms": 260.3305944999761,
+     "updates_per_s": 3.8412696053674624
+    },
+    {
+     "seq": 512,
+     "batch": 1,
+     "update_ms": 33.02907299996605,
+     "updates_per_s": 30.276356832691853
+    },
+    {
+     "seq": 512,
+     "batch": 8,
+     "update_ms": 199.83047649998298,
+     "updates_per_s": 5.004241682825018
+    },
+    {
+     "seq": 512,
+     "batch": 32,
+     "update_ms": 772.307708999989,
+     "updates_per_s": 1.2948206891458263
+    },
+    {
+     "seq": 1024,
+     "batch": 1,
+     "update_ms": 65.36904350002715,
+     "updates_per_s": 15.297760934800655
+    },
+    {
+     "seq": 1024,
+     "batch": 8,
+     "update_ms": 454.405015500015,
+     "updates_per_s": 2.200679935056674
+    },
+    {
+     "seq": 1024,
+     "batch": 32,
+     "update_ms": 1886.2445625000248,
+     "updates_per_s": 0.5301539470971898
+    }
+   ],
+   "vram_mb": 6258.533888
+  }
+ ]
+}

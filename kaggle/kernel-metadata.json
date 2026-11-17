@@ -1,0 +1,11 @@
+{
+  "id": "sensesvoid/hd-laya-probe5",
+  "title": "hd-laya probe5",
+  "code_file": "kaggle_probe5.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": false
+}

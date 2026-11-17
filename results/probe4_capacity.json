@@ -1,0 +1,237 @@
+{
+ "probe": "4-capacity",
+ "rows": [
+  {
+   "dims": 1024,
+   "n": 32,
+   "mean_error": 0.020833333333333332,
+   "max_error": 0.03125,
+   "predicted_eps": 1.1253517471925912e-07
+  },
+  {
+   "dims": 1024,
+   "n": 64,
+   "mean_error": 0.19270833333333334,
+   "max_error": 0.203125,
+   "predicted_eps": 0.00033546262790251185
+  },
+  {
+   "dims": 1024,
+   "n": 128,
+   "mean_error": 0.5625,
+   "max_error": 0.5859375,
+   "predicted_eps": 0.01831563888873418
+  },
+  {
+   "dims": 1024,
+   "n": 256,
+   "mean_error": 0.75390625,
+   "max_error": 0.7578125,
+   "predicted_eps": 0.1353352832366127
+  },
+  {
+   "dims": 1024,
+   "n": 512,
+   "mean_error": 0.8606770833333334,
+   "max_error": 0.873046875,
+   "predicted_eps": 0.36787944117144233
+  },
+  {
+   "dims": 1024,
+   "n": 1024,
+   "mean_error": 0.9228515625,
+   "max_error": 0.931640625,
+   "predicted_eps": 0.6065306597126334
+  },
+  {
+   "dims": 2048,
+   "n": 32,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.2664165549094176e-14
+  },
+  {
+   "dims": 2048,
+   "n": 64,
+   "mean_error": 0.036458333333333336,
+   "max_error": 0.046875,
+   "predicted_eps": 1.1253517471925912e-07
+  },
+  {
+   "dims": 2048,
+   "n": 128,
+   "mean_error": 0.1875,
+   "max_error": 0.234375,
+   "predicted_eps": 0.00033546262790251185
+  },
+  {
+   "dims": 2048,
+   "n": 256,
+   "mean_error": 0.5286458333333334,
+   "max_error": 0.53125,
+   "predicted_eps": 0.01831563888873418
+  },
+  {
+   "dims": 2048,
+   "n": 512,
+   "mean_error": 0.7584635416666666,
+   "max_error": 0.767578125,
+   "predicted_eps": 0.1353352832366127
+  },
+  {
+   "dims": 2048,
+   "n": 1024,
+   "mean_error": 0.8678385416666666,
+   "max_error": 0.8857421875,
+   "predicted_eps": 0.36787944117144233
+  },
+  {
+   "dims": 4096,
+   "n": 32,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.603810890548638e-28
+  },
+  {
+   "dims": 4096,
+   "n": 64,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.2664165549094176e-14
+  },
+  {
+   "dims": 4096,
+   "n": 128,
+   "mean_error": 0.026041666666666668,
+   "max_error": 0.0390625,
+   "predicted_eps": 1.1253517471925912e-07
+  },
+  {
+   "dims": 4096,
+   "n": 256,
+   "mean_error": 0.21614583333333334,
+   "max_error": 0.21875,
+   "predicted_eps": 0.00033546262790251185
+  },
+  {
+   "dims": 4096,
+   "n": 512,
+   "mean_error": 0.544921875,
+   "max_error": 0.560546875,
+   "predicted_eps": 0.01831563888873418
+  },
+  {
+   "dims": 4096,
+   "n": 1024,
+   "mean_error": 0.7552083333333334,
+   "max_error": 0.7666015625,
+   "predicted_eps": 0.1353352832366127
+  },
+  {
+   "dims": 8192,
+   "n": 32,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 2.572209372642415e-56
+  },
+  {
+   "dims": 8192,
+   "n": 64,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.603810890548638e-28
+  },
+  {
+   "dims": 8192,
+   "n": 128,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.2664165549094176e-14
+  },
+  {
+   "dims": 8192,
+   "n": 256,
+   "mean_error": 0.024739583333333332,
+   "max_error": 0.03125,
+   "predicted_eps": 1.1253517471925912e-07
+  },
+  {
+   "dims": 8192,
+   "n": 512,
+   "mean_error": 0.20963541666666666,
+   "max_error": 0.21875,
+   "predicted_eps": 0.00033546262790251185
+  },
+  {
+   "dims": 8192,
+   "n": 1024,
+   "mean_error": 0.53125,
+   "max_error": 0.541015625,
+   "predicted_eps": 0.01831563888873418
+  },
+  {
+   "dims": 16384,
+   "n": 32,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 6.616261056709485e-112
+  },
+  {
+   "dims": 16384,
+   "n": 64,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 2.572209372642415e-56
+  },
+  {
+   "dims": 16384,
+   "n": 128,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.603810890548638e-28
+  },
+  {
+   "dims": 16384,
+   "n": 256,
+   "mean_error": 0.0,
+   "max_error": 0.0,
+   "predicted_eps": 1.2664165549094176e-14
+  },
+  {
+   "dims": 16384,
+   "n": 512,
+   "mean_error": 0.02734375,
+   "max_error": 0.037109375,
+   "predicted_eps": 1.1253517471925912e-07
+  },
+  {
+   "dims": 16384,
+   "n": 1024,
+   "mean_error": 0.22298177083333334,
+   "max_error": 0.234375,
+   "predicted_eps": 0.00033546262790251185
+  }
+ ],
+ "summary": {
+  "D1024": {
+   "max_n_error_free": 0,
+   "n_at_1pct": 0
+  },
+  "D2048": {
+   "max_n_error_free": 32,
+   "n_at_1pct": 32
+  },
+  "D4096": {
+   "max_n_error_free": 64,
+   "n_at_1pct": 64
+  },
+  "D8192": {
+   "max_n_error_free": 128,
+   "n_at_1pct": 128
+  },
+  "D16384": {
+   "max_n_error_free": 256,
+   "n_at_1pct": 256
+  }
+ }
+}
