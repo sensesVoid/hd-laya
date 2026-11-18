@@ -26,8 +26,10 @@ SMOKE = os.environ.get("SMOKE", "0") == "1"
 OUT_DIR = os.environ.get("OUT_DIR", "./out")
 K_VALUES = [int(x) for x in os.environ.get("K_VALUES", "77,150,500,1000,2000").split(",") if x.strip()] if not SMOKE else [20]
 N_PER_K = int(os.environ.get("N_PER_K", "256" if not SMOKE else "32"))
+CHECKPOINT_URL = os.environ.get("CHECKPOINT_URL", "")  # optional: direct download URL for trained .pt
 
 import numpy as np
+import torch
 
 from hd_laya.data_gen import gen_dataset
 from hd_laya.bench import run_benchmark, dump_json, BenchmarkItem
@@ -36,38 +38,89 @@ from hd_laya.index import OptionIndex
 from hd_laya.zgate import z_from_scores
 
 
-class TrainedHeadAgent:
-    """Agent that uses HDC index + a clear-winner scoring rule.
+class TrainedLayaAgent:
+    """Agent that uses the real trained laya model (head + scorer + act_head + type_emb)."""
 
-    For each choice question the option whose description best matches the
-    state (by char n-gram overlap) is given a high score; the rest get low
-    scores. This exercises the full narrowing + z-gate path with meaningful
-    predictions (accuracy ~1.0) so the benchmark reports real numbers.
-    """
+    def __init__(self, checkpoint_path: str):
+        from laya.agent import Agent
+        print("Loading laya model...")
+        agent = Agent("convaiinnovations/laya", device="cpu")
+        model = agent.model
+        model.eval()
 
-    def __init__(self):
-        pass
+        print(f"Loading checkpoint from {checkpoint_path}...")
+        ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        missing, unexpected = model.load_state_dict(ckpt["state_dict"], strict=False)
+        print(f"  loaded: {len(ckpt['state_dict'])} keys, missing={len(missing)}, unexpected={len(unexpected)}")
+
+        self.model = model
+        self.tok = agent.tok
+        self.device = "cpu"
 
     def predict(self, state, questions):
+        """Use real laya forward pass for predictions."""
+        from laya.common import build_sequence
+        from laya.train import encode_state, to_internal, make_item
+
         answers = {}
+        # Encode state once
+        state_ids = encode_state(self.tok, state, 512)
+
         for qid, qdef in questions.items():
+            q = to_internal(qid, qdef)
             crit = qdef.get("criteria", {})
             labels = list(crit.keys()) if isinstance(crit, dict) else list(crit)
-            descs = [crit[lbl] if isinstance(crit, dict) else str(lbl) for lbl in labels]
-            # HDC index ranks options by text similarity to state.
-            idx = OptionIndex.fit(descs)
-            ranked, _scores, _meta = idx.rank(state)
-            # Map ranked (desc strings) back to labels.
-            desc_to_label = {descs[i]: labels[i] for i in range(len(labels))}
-            best_desc = ranked[0]
-            best_label = desc_to_label[best_desc]
-            sc = {lbl: (10.0 if lbl == best_label else 0.1) for lbl in labels}
-            answers[qid] = {
-                "choice": best_label,
-                "score": sc[best_label],
-                "confidence": 0.95,
-                "scores": sc,
-            }
+
+            # Build items for each option layout (parallel)
+            item_dict, _ = make_item(
+                self.tok, q,
+                target=[0.0] * len(labels),  # dummy, not used for inference
+                state_ids=state_ids,
+                head_max_len=192,
+                max_len=512
+            )
+
+            if item_dict is None:
+                # Fallback: simple scoring
+                sc = {lbl: 1.0 / len(labels) for lbl in labels}
+                answers[qid] = {
+                    "choice": labels[0],
+                    "score": 1.0 / len(labels),
+                    "confidence": 0.5,
+                    "scores": sc,
+                }
+                continue
+
+            # Run model forward
+            with torch.no_grad():
+                input_ids = torch.tensor([item_dict["ids"]], device=self.device)
+                attention_mask = torch.tensor([item_dict["markers"]], device=self.device)
+                marker_pos = torch.tensor([[i for i, m in enumerate(item_dict["markers"]) if m]], device=self.device)
+                marker_mask = torch.tensor([[1 if m else 0 for m in item_dict["markers"]]], device=self.device)
+                qtype = torch.tensor([item_dict["qtype"]], device=self.device)
+
+                # Full forward through encoder + head + scorer
+                out = self.model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    marker_pos=marker_pos,
+                    marker_mask=marker_mask,
+                    qtype=qtype
+                )
+
+                # out["probs"]: (1, n_options)
+                probs = out["probs"][0].cpu().numpy()
+                best_idx = int(np.argmax(probs))
+                best_label = labels[best_idx] if best_idx < len(labels) else labels[0]
+
+                sc = {lbl: float(probs[i]) if i < len(probs) else 0.0 for i, lbl in enumerate(labels)}
+                answers[qid] = {
+                    "choice": best_label,
+                    "score": float(probs[best_idx]) if best_idx < len(probs) else 0.0,
+                    "confidence": float(np.max(probs)) if len(probs) > 0 else 0.0,
+                    "scores": sc,
+                }
+
         return {"answers": answers, "usage": {}}
 
 
@@ -80,7 +133,21 @@ def expected_calibration_error(rows):
 
 
 def main():
-    base_agent = TrainedHeadAgent()
+    # Download checkpoint if URL provided, else use local
+    checkpoint_path = "./checkpoint/hd_laya_trained.pt"
+    if CHECKPOINT_URL and not os.path.exists(checkpoint_path):
+        import urllib.request
+        os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+        print(f"Downloading checkpoint from {CHECKPOINT_URL}...")
+        urllib.request.urlretrieve(CHECKPOINT_URL, checkpoint_path)
+        print("Download complete.")
+
+    if not os.path.exists(checkpoint_path):
+        print(f"Checkpoint not found at {checkpoint_path}, using placeholder agent")
+        base_agent = TrainedHeadAgent()
+    else:
+        base_agent = TrainedLayaAgent(checkpoint_path)
+
     agent = HDLayaAgent(base_agent, max_options=20, z_bar=5.0)
 
     all_results = {}
@@ -115,6 +182,33 @@ def main():
         json.dump(all_results, f, indent=2)
     print("ALL DONE")
     print(json.dumps(all_results, indent=2))
+
+
+class TrainedHeadAgent:
+    """Placeholder agent (fallback when no checkpoint) - uses HDC text similarity."""
+
+    def __init__(self):
+        pass
+
+    def predict(self, state, questions):
+        answers = {}
+        for qid, qdef in questions.items():
+            crit = qdef.get("criteria", {})
+            labels = list(crit.keys()) if isinstance(crit, dict) else list(crit)
+            descs = [crit[lbl] if isinstance(crit, dict) else str(lbl) for lbl in labels]
+            idx = OptionIndex.fit(descs)
+            ranked, _scores, _meta = idx.rank(state)
+            desc_to_label = {descs[i]: labels[i] for i in range(len(labels))}
+            best_desc = ranked[0]
+            best_label = desc_to_label[best_desc]
+            sc = {lbl: (10.0 if lbl == best_label else 0.1) for lbl in labels}
+            answers[qid] = {
+                "choice": best_label,
+                "score": sc[best_label],
+                "confidence": 0.95,
+                "scores": sc,
+            }
+        return {"answers": answers, "usage": {}}
 
 
 if __name__ == "__main__":
