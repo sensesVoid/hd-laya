@@ -20,7 +20,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_REF = "4621b92"  # pinned by sync_bundles.py
+DEFAULT_REF = "c2ec6f3"  # pinned by sync_bundles.py
 PKG_REF = os.environ.get("HD_LAYA_REF", DEFAULT_REF)
 LAYA_PIN = os.environ.get("LAYA_PIN", "0.4.35")
 
@@ -41,7 +41,7 @@ OUT_DIR = os.environ.get("OUT_DIR", "./out")
 TRAIN_STEPS = int(os.environ.get("TRAIN_STEPS", "50" if SMOKE else "500"))
 K = int(os.environ.get("K", "20"))
 N_ITEMS = int(os.environ.get("N_ITEMS", "16" if SMOKE else "2048"))
-EPOCHS = int(os.environ.get("EPOCHS", "1" if SMOKE else "6"))
+EPOCHS = int(os.environ.get("EPOCHS", "1" if SMOKE else "12"))
 MAX_LEN = int(os.environ.get("MAX_LEN", "256" if SMOKE else "512"))
 HEAD_MAX_LEN = int(os.environ.get("HEAD_MAX_LEN", "64" if SMOKE else "192"))
 MICRO_BATCH = int(os.environ.get("MICRO_BATCH", "2" if SMOKE else "4"))

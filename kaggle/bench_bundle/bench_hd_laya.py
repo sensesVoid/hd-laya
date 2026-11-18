@@ -21,7 +21,7 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_REF = "4621b92"  # pinned by sync_bundles.py
+DEFAULT_REF = "c2ec6f3"  # pinned by sync_bundles.py
 PKG_REF = os.environ.get("HD_LAYA_REF", DEFAULT_REF)
 LAYA_PIN = os.environ.get("LAYA_PIN", "0.4.35")
 
