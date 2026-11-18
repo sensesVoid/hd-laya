@@ -16,16 +16,53 @@ from __future__ import annotations
 import glob
 import json
 import os
+import subprocess
 import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+PKG_REF = os.environ.get("HD_LAYA_REF", "8f2b86a")
+LAYA_PIN = os.environ.get("LAYA_PIN", "0.4.35")
+
+
+def _local_repo(start: str):
+    """Nearest ancestor that contains the package (checkout layout), else None."""
+    path = start
+    for _ in range(4):
+        if os.path.isdir(os.path.join(path, "hd_laya")):
+            return path
+        path = os.path.dirname(path)
+    return None
+
+
+repo = _local_repo(HERE)
+if repo:
+    # Prefer the checkout under test; keeps `python kaggle/bench_hd_laya.py` a
+    # faithful smoke run of exactly what gets pushed.
+    sys.path.insert(0, repo)
+else:
+    # Kaggle uploads only this file, so the package comes from pip there.
+    import importlib.util
+
+    if importlib.util.find_spec("hd_laya") is None:
+        # Pin laya first: the head weights match the architecture it shipped with,
+        # and `laya>=0.4.35` alone would float to whatever PyPI has today.
+        print(f"installing laya {LAYA_PIN} and hd_laya {PKG_REF} from GitHub", flush=True)
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", f"laya=={LAYA_PIN}"],
+                       check=True)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q",
+             f"git+https://github.com/sensesVoid/hd-laya.git@{PKG_REF}"],
+            check=True,
+        )
 
 try:
-    import hd_laya  # noqa: F401  (bundled alongside this file)
-except ImportError:  # pragma: no cover - only on a broken bundle
-    print("WARNING: bundled hd_laya not importable from %s" % HERE, flush=True)
+    from hd_laya.laya_agent import TrainedLayaAgent  # noqa: E402
+except ImportError as exc:  # pragma: no cover - stale install
+    raise SystemExit(
+        f"hd_laya has no laya_agent ({exc}); expected ref {PKG_REF}. "
+        "Install it or unset the stale copy."
+    )
 
 SMOKE = os.environ.get("SMOKE", "0") == "1"
 OUT_DIR = os.environ.get("OUT_DIR", "./out")
@@ -121,7 +158,6 @@ def main() -> int:
     from hd_laya.agent import HDLayaAgent
     from hd_laya.bench import BenchmarkItem, dump_json, run_benchmark
     from hd_laya.data_gen import gen_dataset
-    from hd_laya.laya_agent import TrainedLayaAgent
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"device={device} smoke={SMOKE} K={K_VALUES} n={N_PER_K} "
