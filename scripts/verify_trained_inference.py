@@ -23,6 +23,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint", required=True)
+    ap.add_argument("--baseline", action="store_true",
+                    help="skip the checkpoint and measure the frozen base model")
+    ap.add_argument("--compare", action="store_true",
+                    help="measure base, then apply the checkpoint and measure again; "
+                         "prints prediction agreement so training gain is not confused "
+                         "with base-model skill")
     ap.add_argument("--n", type=int, default=6)
     ap.add_argument("--k", type=int, nargs="+", default=[20, 77])
     ap.add_argument("--device", default="cpu")
@@ -41,40 +47,55 @@ def main() -> int:
 
     print(f"loading laya ({args.device}) ...")
     agent = Agent("convaiinnovations/laya", device=args.device)
-    print("applying checkpoint ...")
-    trained = TrainedLayaAgent.from_checkpoint(
-        args.checkpoint,
-        agent=agent,
-        max_len=args.max_len,
-        head_max_len=args.head_max_len,
-    )
-    model = agent.model
-    n_head = sum(p.numel() for name, p in model.named_parameters() if not name.startswith("encoder."))
-    print(f"head params: {n_head:,}")
 
-    hd = HDLayaAgent(trained, max_options=20, z_bar=5.0)
-
-    failures = 0
-    for K in args.k:
+    def evaluate(label, K):
+        hd = HDLayaAgent(TrainedLayaAgent(agent, max_len=args.max_len,
+                                          head_max_len=args.head_max_len),
+                         max_options=20, z_bar=5.0)
         raw = gen_dataset(args.n, K, seed=7)
         items = [BenchmarkItem(state=it["state"], expected=it["expected"],
                                meta={"K": K, "questions": it["questions"]}) for it in raw]
         res = run_benchmark(hd, items, lambda item: item.meta["questions"], question_id="q")
         summary = dict(res["summary"])
         summary["K"] = K
+        summary["arm"] = label
         print(json.dumps(summary))
+        return res
 
+    if args.compare:
+        base = evaluate("base", args.k[0])
+        print("applying checkpoint ...")
+        TrainedLayaAgent.from_checkpoint(
+            args.checkpoint, agent=agent,
+            max_len=args.max_len, head_max_len=args.head_max_len,
+        )
+        tuned = evaluate("trained", args.k[0])
+        agree = sum(1 for a, b in zip(base["rows"], tuned["rows"])
+                    if a["predicted"] == b["predicted"])
+        print(json.dumps({"agreement": round(agree / len(base["rows"]), 4),
+                          "n": len(base["rows"])}))
+        return 0
+
+    if args.baseline:
+        print("baseline: base checkpoint, no trained weights applied")
+    else:
+        print("applying checkpoint ...")
+        TrainedLayaAgent.from_checkpoint(
+            args.checkpoint,
+            agent=agent,
+            max_len=args.max_len,
+            head_max_len=args.head_max_len,
+        )
+
+    failures = 0
+    for K in args.k:
+        res = evaluate("trained" if not args.baseline else "base", K)
         row = res["rows"][0]
         ans = (row.get("agent_meta") or {}).get("hd_index", {}).get("q", {})
         print(json.dumps({"narrowed": ans.get("narrowed"), "to": ans.get("narrowed_to")}))
 
-        if summary["accuracy"] == 0.0:
-            # Informational only: a head that never saw this exact split can still
-            # score low. The hard failure is producing answers at all.
-            print(f"WARNING: K={K} accuracy is 0.0 over {summary['n']} items")
-            failures += 0
-        if summary["n"] != args.n:
-            print(f"ERROR: K={K} scored {summary['n']} of {args.n} items")
+        if res["summary"]["n"] != args.n:
+            print(f"ERROR: K={K} scored {res['summary']['n']} of {args.n} items")
             failures += 1
 
     if torch.cuda.is_available():
