@@ -46,3 +46,22 @@ def test_k_values_include_ceiling_breakers():
     assert 20 in K_VALUES
     assert 1000 in K_VALUES
     assert 2000 in K_VALUES
+
+
+def test_every_option_carries_a_unique_key():
+    item = gen_dataset(1, 150, seed=0)[0]
+    crit = item["questions"]["q"]["criteria"]
+    keys = [text.rsplit("order ", 1)[-1] for text in crit.values()]
+    assert len(set(keys)) == 150
+
+
+def test_only_the_expected_option_key_appears_in_the_state():
+    """The ceiling is 1.0 only if the state identifies exactly one option."""
+    for seed in (0, 3, 11):
+        item = gen_dataset(1, 500, seed=seed)[0]
+        crit = item["questions"]["q"]["criteria"]
+        state = item["state"]
+        hits = [label for label, text in crit.items()
+                if text.rsplit("order ", 1)[-1] in state]
+        assert hits == [item["expected"]]
+

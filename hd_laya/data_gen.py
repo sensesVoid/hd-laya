@@ -5,6 +5,14 @@ in laya's question format, so the trained model can be evaluated on
 cardinalities far beyond laya's ~20-option ceiling. Pure numpy, no torch, no
 hub: runs anywhere, including Kaggle smoke mode.
 
+**The task is well-posed by construction.** Each option carries a unique order
+key, and the state names exactly one of them, so precisely one option is the
+right answer and the attainable accuracy is 1.0 at every K. An earlier version
+filled every option from the same 12-topic vocabulary, which made ~K/12 options
+equally consistent with the state; accuracy could never exceed 12/K and the
+high-K rows measured that ceiling instead of retrieval. The topic is still
+present as distracting overlap -- it is what a lexical index has to see past.
+
 Output item shape (matches laya's predict_batch input):
     {"state": str, "questions": {qid: {"type":"choice","instructions":str,
      "criteria": {label: description}}}, "expected": label}
@@ -25,28 +33,32 @@ _TOPICS = (
     "dispute charge", "schedule pickup", "return item", "apply coupon",
 )
 
+_KEY_LO = 1_000_000
+_KEY_HI = 9_999_999
+
 
 def gen_choice_item(
     rng: np.random.Generator,
     K: int,
     topic_vocab: "list[str] | None" = None,
 ) -> Dict[str, Any]:
-    """One choice item: state + K-option criteria + expected label."""
+    """One choice item: state + K uniquely-keyed options + expected label."""
     if topic_vocab is None:
         topic_vocab = list(_TOPICS)
-    # Pick the correct option's topic; distractors are other topics (possibly
-    # with light wording variation) so the answer is unambiguous by topic.
+    # The correct option's topic appears in the state; distractor topics are
+    # drawn from the same vocabulary so topic alone never identifies the answer.
     correct_topic = str(rng.choice(topic_vocab))
     labels = [f"opt_{i}" for i in range(K)]
-    criteria: Dict[str, str] = {}
     expected_idx = int(rng.integers(0, K))
+    keys = rng.choice(np.arange(_KEY_LO, _KEY_HI + 1), size=K, replace=False)
+    key_text = [f"ORD-{int(k)}" for k in keys]
+
+    criteria: Dict[str, str] = {}
     for i in range(K):
-        if i == expected_idx:
-            t = correct_topic
-        else:
-            t = str(rng.choice(topic_vocab))
-        criteria[labels[i]] = f"{t} (variant {i})"
-    state = f"customer wants to {correct_topic}"
+        topic = correct_topic if i == expected_idx else str(rng.choice(topic_vocab))
+        criteria[labels[i]] = f"{topic}; order {key_text[i]}"
+
+    state = f"customer wants to {correct_topic}; order {key_text[expected_idx]}"
     return {
         "state": state,
         "questions": {

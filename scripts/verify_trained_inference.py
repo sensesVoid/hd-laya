@@ -32,6 +32,7 @@ def main() -> int:
     ap.add_argument("--n", type=int, default=6)
     ap.add_argument("--k", type=int, nargs="+", default=[20, 77])
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--seed", type=int, default=7, help="generator seed; training used 0")
     ap.add_argument("--max-len", type=int, default=512)
     ap.add_argument("--head-max-len", type=int, default=192)
     args = ap.parse_args()
@@ -52,7 +53,7 @@ def main() -> int:
         hd = HDLayaAgent(TrainedLayaAgent(agent, max_len=args.max_len,
                                           head_max_len=args.head_max_len),
                          max_options=20, z_bar=5.0)
-        raw = gen_dataset(args.n, K, seed=7)
+        raw = gen_dataset(args.n, K, seed=args.seed)
         items = [BenchmarkItem(state=it["state"], expected=it["expected"],
                                meta={"K": K, "questions": it["questions"]}) for it in raw]
         res = run_benchmark(hd, items, lambda item: item.meta["questions"], question_id="q")
@@ -73,7 +74,9 @@ def main() -> int:
         agree = sum(1 for a, b in zip(base["rows"], tuned["rows"])
                     if a["predicted"] == b["predicted"])
         print(json.dumps({"agreement": round(agree / len(base["rows"]), 4),
-                          "n": len(base["rows"])}))
+                          "n": len(base["rows"]),
+                          "accuracy_delta": round(tuned["summary"]["accuracy"]
+                                                  - base["summary"]["accuracy"], 4)}))
         return 0
 
     if args.baseline:

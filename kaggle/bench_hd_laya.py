@@ -21,7 +21,8 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PKG_REF = os.environ.get("HD_LAYA_REF", "8f2b86a")
+DEFAULT_REF = "8f2b86a"  # rewritten by kaggle/sync_bundles.py before a push
+PKG_REF = os.environ.get("HD_LAYA_REF", DEFAULT_REF)
 LAYA_PIN = os.environ.get("LAYA_PIN", "0.4.35")
 
 
