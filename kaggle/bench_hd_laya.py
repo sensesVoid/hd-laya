@@ -26,7 +26,6 @@ SMOKE = os.environ.get("SMOKE", "0") == "1"
 OUT_DIR = os.environ.get("OUT_DIR", "./out")
 K_VALUES = [int(x) for x in os.environ.get("K_VALUES", "77,150,500,1000,2000").split(",") if x.strip()] if not SMOKE else [20]
 N_PER_K = int(os.environ.get("N_PER_K", "256" if not SMOKE else "32"))
-CHECKPOINT_URL = os.environ.get("CHECKPOINT_URL", "")  # optional: direct download URL for trained .pt
 
 import numpy as np
 import torch
@@ -132,20 +131,57 @@ def expected_calibration_error(rows):
     return abs(sum(correct) / len(correct) - conf)
 
 
-def main():
-    # Download checkpoint if URL provided, else use local
-    checkpoint_path = "./checkpoint/hd_laya_trained.pt"
-    if CHECKPOINT_URL and not os.path.exists(checkpoint_path):
-        import urllib.request
-        os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
-        print(f"Downloading checkpoint from {CHECKPOINT_URL}...")
-        urllib.request.urlretrieve(CHECKPOINT_URL, checkpoint_path)
-        print("Download complete.")
+def download_checkpoint_if_needed():
+    """Download checkpoint from Kaggle dataset if not present locally."""
+    kaggle_input_dir = "/kaggle/input/datasets/sensesvoid/hd-laya-trained-checkpoint-v2"
+    checkpoint_path = os.path.join(kaggle_input_dir, "hd_laya_trained.pt")
+    
+    if os.path.exists(checkpoint_path):
+        print(f"Found checkpoint at {checkpoint_path}")
+        return checkpoint_path
+    
+    # Try alternative mount paths
+    alt_paths = [
+        "/kaggle/input/hd-laya-trained-checkpoint-v2/hd_laya_trained.pt",
+        "/kaggle/input/sensesvoid/hd-laya-trained-checkpoint-v2/hd_laya_trained.pt",
+        "./checkpoint/hd_laya_trained.pt",
+    ]
+    
+    for p in alt_paths:
+        if os.path.exists(p):
+            print(f"Found checkpoint at {p}")
+            return p
+    
+    # Download using Kaggle API
+    print("Checkpoint not found locally, downloading from Kaggle...")
+    try:
+        import subprocess
+        result = subprocess.run([
+            "kaggle", "datasets", "download", 
+            "sensesvoid/hd-laya-trained-checkpoint-v2",
+            "-p", "./checkpoint",
+            "--unzip"
+        ], capture_output=True, text=True, timeout=300)
+        if result.returncode == 0:
+            print("Download successful")
+            if os.path.exists("./checkpoint/hd_laya_trained.pt"):
+                return "./checkpoint/hd_laya_trained.pt"
+        else:
+            print(f"Download failed: {result.stderr}")
+    except Exception as e:
+        print(f"Download error: {e}")
+    
+    return None
 
-    if not os.path.exists(checkpoint_path):
-        print(f"Checkpoint not found at {checkpoint_path}, using placeholder agent")
+
+def main():
+    checkpoint_path = download_checkpoint_if_needed()
+    
+    if not checkpoint_path or not os.path.exists(checkpoint_path):
+        print("Checkpoint not available, using placeholder agent")
         base_agent = TrainedHeadAgent()
     else:
+        print(f"Using checkpoint: {checkpoint_path}")
         base_agent = TrainedLayaAgent(checkpoint_path)
 
     agent = HDLayaAgent(base_agent, max_options=20, z_bar=5.0)
