@@ -1,0 +1,12 @@
+{
+  "id": "sensesvoid/hd-laya-bench",
+  "title": "hd-laya-bench",
+  "code_file": "bench_hd_laya.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": ["sensesvoid/hd-laya-trained-checkpoint-v2"]
+}

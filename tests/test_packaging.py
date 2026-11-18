@@ -16,7 +16,7 @@ def test_pyproject_metadata():
         data = tomllib.load(f)
     proj = data["project"]
     assert proj["name"] == "hd-laya"
-    assert proj["version"] == "0.1.0"
+    assert proj["version"] == "1.0.0"
     assert proj["license"]["text"] == "Apache-2.0"
     assert proj["requires-python"] == ">=3.10"
     deps = proj["dependencies"]
