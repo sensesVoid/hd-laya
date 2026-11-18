@@ -71,6 +71,7 @@ def run_benchmark(
             "state": item.state,
             "expected": item.expected,
             "predicted": pred,
+            "confidence": ans_dict.get("confidence") if isinstance(ans_dict, dict) else None,
             "refused": is_refused,
             "correct": ok,
             "meta": item.meta,

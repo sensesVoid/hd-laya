@@ -52,6 +52,15 @@ def test_bench_counts_refusals():
     assert all(r["refused"] for r in res["rows"])
 
 
+def test_bench_rows_carry_confidence():
+    items = [BenchmarkItem(state=f"s:{i % 5}", expected=str(i % 5)) for i in range(6)]
+    def mq(item):
+        labels = [str(j) for j in range(5)]
+        return {"q": {"type": "choice", "criteria": {l: l for l in labels}}}
+    res = run_benchmark(FakeAgent("correct"), items, mq)
+    assert all(r["confidence"] == 0.9 for r in res["rows"])
+
+
 def test_bench_wrong_predictions_lower_accuracy():
     items = [BenchmarkItem(state=f"s:{i}", expected=str(i % 4)) for i in range(20)]
     def mq(item):

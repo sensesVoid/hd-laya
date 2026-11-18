@@ -38,7 +38,8 @@ def export_onnx(
     input_names: Sequence[str] = ("input",),
     output_names: Sequence[str] = ("output",),
     dynamic_axes: Optional[dict] = None,
-    opset_version: int = 17,
+    opset_version: int = 18,
+    dynamo: bool = False,
 ) -> Path:
     if not _TORCH:
         raise RuntimeError("export_onnx requires torch")
@@ -56,7 +57,7 @@ def export_onnx(
             output_names=list(output_names),
             dynamic_axes=dynamic_axes,
             opset_version=opset_version,
-            dynamo=False,
+            dynamo=dynamo,
         )
     verify_onnx(p)
     return p
