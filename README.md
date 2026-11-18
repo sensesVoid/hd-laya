@@ -3,15 +3,13 @@
 **hd-laya** is a neuro-symbolic decision model built on top of the pure,
 un-distilled upstream [laya](https://github.com/NandhaKishorM/laya) System-1
 engine. It removes laya's ~20-option choice ceiling and lets a
-hyperdimensional (HDC/VSA) workspace manage context, with measured (speed,
-accuracy) sweet spots instead of assumed ones.
+hyperdimensional (HDC/VSA) workspace manage context.
 
-- **v0.1** (this release): a no-train HDC harness wrapping unmodified laya
-  checkpoints — two-stage coarse-to-fine option index, int16 counter
-  workspace with exact undo, z-gate abstention, and an engine-agnostic
-  benchmark runner.
-- **v1.0** (planned): trained HDC option slots + HDC-context projection +
-  realtime RLCD refinement (see SQAC docs `hd-laya-design-spec-p1..p3`).
+- **v0.1**: no-train HDC harness — two-stage option index, int16 counter
+  workspace with exact undo, z-gate abstention, engine-agnostic bench runner.
+- **v1.0**: the harness plus a well-posed high-K suite, a strict
+  trained-checkpoint loader, an ONNX export path, and a refine loop — **and a
+  negative result on head fine-tuning**, documented below rather than rounded up.
 
 License: Apache-2.0 (derived from laya; attribution to NandhaKishorM/laya).
 
@@ -19,11 +17,10 @@ License: Apache-2.0 (derived from laya; attribution to NandhaKishorM/laya).
 
 ```bash
 pip install hd-laya
-# optional semantic tier (MiniLM):
-pip install "hd-laya[sem]"
+pip install "hd-laya[sem]"   # optional semantic tier (MiniLM)
 ```
 
-Requires Python >= 3.10. The laya engine is pulled in automatically.
+Requires Python >= 3.10; the laya engine is pulled in automatically.
 
 ## Quickstart
 
@@ -32,43 +29,81 @@ from hd_laya.index import OptionIndex
 from hd_laya.workspace import Workspace
 from hd_laya.zgate import decide, z_from_scores
 
-# Two-stage option index: handles hundreds of options in one pass.
-idx = OptionIndex.fit(["refund order", "cancel subscription", "track package", "..."])
+idx = OptionIndex.fit(["refund order", "cancel subscription", "track package"])
 labels, scores, meta = idx.rank("where is my package")
-print(labels[:5], meta["margin"], meta["near_tie"])
+print(labels[:3], meta["margin"])
 
-# HDC context workspace: write, erase (exact undo), decode with z-gate.
 ws = Workspace(dims=65536)
 ws.write("ctx", ["role:order"], ["filler:42"])
 print(ws.decode("ctx", ["role:order"], ["filler:0", "filler:42"]))
 
-# Z-gate abstention.
-z = z_from_scores([0.9, 0.05, 0.05])
-print(decide(z, bar=5.0))   # "answer" or "REFUSE"
+print(decide(z_from_scores([0.9, 0.05, 0.05]), bar=5.0))   # answer / REFUSE
 ```
 
-## Benchmarks
+### Beyond laya's option ceiling
 
-Reuses laya's fixed-question harness for apples-to-apples comparison
-(BANKING77, CLINC150, MASSIVE, ...) plus a novel high-K stress suite
-(500 / 1000 / 2000 options). Run:
+```python
+from laya.agent import Agent
+from hd_laya.agent import HDLayaAgent
 
-```bash
-python -m pytest tests/ -q
+base = Agent("convaiinnovations/laya", device="cuda")
+agent = HDLayaAgent(base, max_options=20, z_bar=5.0)
+result = agent.predict("customer wants a refund", {"q": {"type": "choice"}})
 ```
 
-Real checkpoint runs are documented as manual steps (need a laya checkpoint
-and `laya` installed from PyPI).
+Any number of criteria: the index narrows to 20 before the forward pass and the
+answer maps back to the original labels. `TrainedLayaAgent` (in
+`hd_laya.laya_agent`) loads a head-only checkpoint over that base model and
+refuses to continue if any non-encoder weight fails to land.
+
+## Measured
+
+The high-K task is well-posed: every option carries a unique order key and the
+state names exactly one of them, so the attainable accuracy is 1.0 at any K. An
+earlier generator drew all options from the same 12-topic vocabulary, which made
+~K/12 options equally consistent with the state; accuracy could never exceed
+12/K and the high-K rows measured that ceiling instead of retrieval.
+
+| measurement | K=20 | K=77 | K=150 | K=500 | K=1000 | K=2000 |
+|---|---|---|---|---|---|---|
+| index recall@20 | – | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+
+Base laya plus narrowing, 48 items: **75.0% at K=200** (83.7% on answered),
+against 52–56% at K=20 direct.
+
+`scripts/measure_index_recall.py` reproduces the recall; it needs numpy only.
+
+### Negative result: head fine-tuning
+
+Three configurations, all measured (`scripts/verify_trained_inference.py
+--compare` prints the delta and prediction agreement):
+
+| config | steps | outcome |
+|---|---|---|
+| RLCD, N=128, lr 1e-4 | 128 | weights moved 0.0035; predictions identical to base on its own training items (30/64 both) |
+| soft-CE, N=512, lr 3e-4 | 1024 | loss flat at 1.00; no accuracy gain at matched coverage (base 62.5% vs 60.9%) |
+| overfit test, N=32, lr 1e-3 | 320 | loss plateaus ~0.85; train top-1 43.8% — it cannot memorize 32 items |
+
+A model that cannot memorize 32 items is not starved of data or steps. With the
+encoder frozen and a 2-layer head, exact key matching across 20 options plateaus
+far below memorisation, so the fine-tune is published as a pipeline artifact and
+not as an improvement. The gate for any future training claim is a held-out
+accuracy delta at matched coverage — never training loss, which is stochastic
+under RLCD and swung 5.38 → 1.10 → 2.42 while barely moving the weights.
 
 ## Layout
 
-- `hd_laya/` — package: `hv.py`, `index.py`, `workspace.py`, `zgate.py`,
-  `agent.py`, `bench.py`
-- `probes/` — measurement code (pre-registered bars)
-- `results/` — probe outputs (JSON)
-- `tests/` — test suite (offline, no hub downloads)
+- `hd_laya/` — `hv`, `index`, `workspace`, `zgate`, `agent`, `bench`,
+  `laya_agent`, `data_gen`, `hdc_slots`, `hdc_context`, `refine_loop`,
+  `export_onnx`
+- `kaggle/` — training and benchmark kernels, pushed with `kaggle/sync_bundles.py`
+- `probes/`, `results/` — pre-registered measurements and their JSON
+- `scripts/` — verification harnesses (`verify_trained_inference.py`,
+  `measure_index_recall.py`, `export_checkpoint.py`)
+- `tests/` — offline suite, no hub downloads
 
 ## Documentation policy
 
 All durable/agent-facing documentation lives in **SQAC** (docs cartridge).
 `README.md` is the only `.md` file in this repo.
+
