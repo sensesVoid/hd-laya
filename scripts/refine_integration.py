@@ -15,9 +15,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 
-from hd_laya.refine_loop import RefineLoop
-import os, sys; sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'kaggle')); from train_hd_laya import build_tiny_head
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -25,18 +22,69 @@ def main():
     ap.add_argument("--steps", type=int, default=5)
     args = ap.parse_args()
 
+    from laya.agent import Agent
+    from hd_laya.refine_loop import RefineLoop
+    from hd_laya.zgate import StreamingCalib
+    from hd_laya.workspace import Workspace
+
+    agent = Agent("convaiinnovations/laya", device="cpu")
+    model = agent.model
+    model.eval()
+
     ckpt = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-    head = build_tiny_head()
-    head.load_state_dict(ckpt["state_dict"])
+    missing, unexpected = model.load_state_dict(ckpt["state_dict"], strict=False)
+    print(f"loaded checkpoint: {len(ckpt['state_dict'])} keys, missing={len(missing)}, unexpected={len(unexpected)}")
+
+    # Use the real laya head (TransformerEncoder) + scorer + act_head + type_emb + temperature
+    head = model.head
     head.eval()
-    opt = torch.optim.Adam(head.parameters(), lr=1e-4)
-    rl = RefineLoop(head, opt)
+
+    # For RefineLoop, we need a module that takes (batch, d_in) -> (batch, n_classes)
+    # The laya head takes (batch, seq, 1024) + mask. Wrap it to flatten the input.
+    # We'll use the first token's output as the "pooled" representation.
+    class RefineHead(torch.nn.Module):
+        def __init__(self, head):
+            super().__init__()
+            self.head = head
+            # Projection from head output (1024) to n_classes (4)
+            self.proj = torch.nn.Linear(1024, 4)
+
+        def forward(self, x):
+            # x: (batch, 32) -> expand to (batch, 1, 1024) if needed, or use a different approach
+            # Actually, the real head expects (batch, seq, 1024). 
+            # We need to project x from 32 -> 1024 first, then add a seq dimension.
+            pass
+
+    # Simpler: use the scorer (which outputs per-marker scores) as the refinement target
+    # The scorer: Sequential(LN, Linear(1024, 256), GELU, Linear(256, 1)) -> (batch, seq, 1)
+    scorer = model.scorer
+    scorer.eval()
+
+    # RefineLoop expects a head that maps (batch, d_in) -> (batch, n_classes)
+    # Let's create a compatible head: project 32 -> 1024, run through scorer on a single token
+    class CompatHead(torch.nn.Module):
+        def __init__(self, scorer, d_in=32, n_classes=4):
+            super().__init__()
+            self.proj = torch.nn.Linear(d_in, 1024)
+            self.scorer = scorer
+            self.n_classes = n_classes
+
+        def forward(self, x):
+            # x: (batch, d_in) -> (batch, 1024) -> (batch, 1, 1024) -> scorer -> (batch, 1) -> expand to n_classes
+            h = self.proj(x).unsqueeze(1)  # (batch, 1, 1024)
+            scores = self.scorer(h).squeeze(-1)  # (batch, 1)
+            # Expand single score to n_classes (for demo; real would be per-option)
+            return scores.repeat(1, self.n_classes)
+
+    compat_head = CompatHead(scorer)
+    compat_head.eval()
+
+    opt = torch.optim.Adam(compat_head.parameters(), lr=1e-4)
+    rl = RefineLoop(compat_head, opt)
 
     x = torch.randn(8, 32)
     y = torch.randn(8, 4)
     # tier 1 + 2 (calib + memory) + tier 3 (head step)
-    from hd_laya.zgate import StreamingCalib
-    from hd_laya.workspace import Workspace
     ws = Workspace(dims=256)
     rl.memory_write(ws, "ctx", ["r0"], ["f0"])
     rl.calibrate(4.0)
