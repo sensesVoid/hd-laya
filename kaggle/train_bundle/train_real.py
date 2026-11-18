@@ -20,11 +20,13 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_REF = "7cbf48d"  # pinned by sync_bundles.py
+DEFAULT_REF = "4621b92"  # pinned by sync_bundles.py
 PKG_REF = os.environ.get("HD_LAYA_REF", DEFAULT_REF)
 LAYA_PIN = os.environ.get("LAYA_PIN", "0.4.35")
 
-if not os.path.isdir(os.path.join(os.path.dirname(HERE), "hd_laya")):
+if os.path.isdir(os.path.join(os.path.dirname(HERE), "hd_laya")):
+    sys.path.insert(0, os.path.dirname(HERE))
+else:
     import importlib.util
 
     if importlib.util.find_spec("hd_laya") is None:
@@ -38,14 +40,15 @@ SMOKE = os.environ.get("SMOKE", "0") == "1"
 OUT_DIR = os.environ.get("OUT_DIR", "./out")
 TRAIN_STEPS = int(os.environ.get("TRAIN_STEPS", "50" if SMOKE else "500"))
 K = int(os.environ.get("K", "20"))
-N_ITEMS = int(os.environ.get("N_ITEMS", "16" if SMOKE else "512"))
-EPOCHS = int(os.environ.get("EPOCHS", "1" if SMOKE else "2"))
+N_ITEMS = int(os.environ.get("N_ITEMS", "16" if SMOKE else "2048"))
+EPOCHS = int(os.environ.get("EPOCHS", "1" if SMOKE else "6"))
 MAX_LEN = int(os.environ.get("MAX_LEN", "256" if SMOKE else "512"))
 HEAD_MAX_LEN = int(os.environ.get("HEAD_MAX_LEN", "64" if SMOKE else "192"))
 MICRO_BATCH = int(os.environ.get("MICRO_BATCH", "2" if SMOKE else "4"))
 GRAD_ACCUM = int(os.environ.get("GRAD_ACCUM", "1"))
-HEAD_LR = float(os.environ.get("HEAD_LR", "1e-4"))
-LOSS = os.environ.get("LOSS", "rlcd")
+HEAD_LR = float(os.environ.get("HEAD_LR", "1e-3"))
+ENCODER_LR = float(os.environ.get("ENCODER_LR", "2e-4"))
+LOSS = os.environ.get("LOSS", "soft-ce")
 RL_SAMPLES = int(os.environ.get("RL_SAMPLES", "2" if SMOKE else "4"))
 
 import torch
@@ -70,6 +73,19 @@ def build_items(tok, n_items, K, seed=0):
     return items
 
 
+def heldout_accuracy(agent, n=128, seed=1000, K=20):
+    from hd_laya.agent import HDLayaAgent
+    from hd_laya.bench import BenchmarkItem, run_benchmark
+    from hd_laya.data_gen import gen_dataset
+    from hd_laya.laya_agent import TrainedLayaAgent
+    raw = gen_dataset(n, K, seed=seed)
+    items = [BenchmarkItem(state=it["state"], expected=it["expected"],
+                           meta={"questions": it["questions"]}) for it in raw]
+    hd = HDLayaAgent(TrainedLayaAgent(agent, max_len=MAX_LEN, head_max_len=HEAD_MAX_LEN),
+                     max_options=20, z_bar=0.0)
+    return run_benchmark(hd, items, lambda i: i.meta["questions"], question_id="q")["summary"]["accuracy"]
+
+
 def run():
     from laya.agent import Agent
     from laya.train import TrainConfig, train_model
@@ -81,8 +97,20 @@ def run():
     print("Loading laya model...", flush=True)
     agent = Agent("convaiinnovations/laya", device=DEVICE)
     model = agent.model
+    unfreeze = int(os.environ.get("UNFREEZE_LAYERS", "2"))
+    if unfreeze:
+        for p in model.encoder.parameters():
+            p.requires_grad_(False)
+        layers = list(model.encoder.layers)[-unfreeze:]
+        for layer in layers:
+            for p in layer.parameters():
+                p.requires_grad_(True)
+        n = sum(p.numel() for p in model.encoder.parameters() if p.requires_grad)
+        print(f"unfroze last {len(layers)} encoder layer(s), {n:,} params", flush=True)
     tok = agent.tok
     print("Model loaded.", flush=True)
+    base_acc = heldout_accuracy(agent, K=K)
+    print(f"BASE held-out acc at K={K}: {base_acc:.3f}", flush=True)
 
     items = build_items(tok, N_ITEMS, K, seed=0)
     if not items:
@@ -92,7 +120,7 @@ def run():
         epochs=EPOCHS,
         micro_batch=MICRO_BATCH,
         grad_accum=GRAD_ACCUM,
-        encoder_lr=1e-5,
+        encoder_lr=ENCODER_LR,
         head_lr=HEAD_LR,
         min_lr=1e-6,
         weight_decay=0.01,
@@ -103,15 +131,15 @@ def run():
         sigma_end=0.5,
         w_sph=1.0,
         w_rps=1.0,
-        shuffle_options=["choice"],
-        freeze_encoder=True,
+        shuffle_options=["choice"] if os.environ.get("SHUFFLE", "1") == "1" else [],
+        freeze_encoder=(unfreeze == 0),
         calib_max=10,
         calib_frac=0.1,
         calib_seed=0,
         seed=0,
         max_len=MAX_LEN,
         head_max_len=HEAD_MAX_LEN,
-        amp=(DEVICE == "cuda"),
+        amp=(DEVICE == "cuda" and os.environ.get("AMP", "1") == "1"),
         gradient_checkpointing=(DEVICE == "cuda"),
         log_every=max(1, len(items) // 8),
         label_smoothing=0.0,
@@ -137,12 +165,10 @@ def run():
                 "n_items": len(items), "epochs": EPOCHS}, ckpt_path)
     print(f"Checkpoint saved: {ckpt_path}", flush=True)
 
-    if losses:
-        floor = math.log(K)
-        final = losses[-1]
-        verdict = "PASS" if final < floor else "FAIL"
-        print(f"GATE {verdict}: final_loss={final:.4f} vs ln(K)={floor:.4f} "
-              f"(margin={floor - final:+.4f})", flush=True)
+    tuned_acc = heldout_accuracy(agent, K=K)
+    delta = tuned_acc - base_acc
+    print(f"RESULT base={base_acc:.3f} trained={tuned_acc:.3f} delta={delta:+.3f} "
+          f"({'PASS' if delta > 0.02 else 'FAIL'})", flush=True)
 
 
 if __name__ == "__main__":
