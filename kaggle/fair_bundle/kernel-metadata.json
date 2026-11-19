@@ -1,0 +1,11 @@
+{
+  "id": "sensesvoid/hd-laya-fair",
+  "title": "hd-laya-fair",
+  "code_file": "bench_fair.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4"
+}
