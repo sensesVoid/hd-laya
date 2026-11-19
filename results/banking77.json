@@ -1,0 +1,10 @@
+{
+  "dataset": "BANKING77",
+  "n_items": 50,
+  "n_intents": 77,
+  "base_accuracy": 0.04,
+  "base_refusal": 0.0,
+  "hd_accuracy": 0.24,
+  "hd_refusal": 0.0,
+  "delta": 0.19999999999999998
+}

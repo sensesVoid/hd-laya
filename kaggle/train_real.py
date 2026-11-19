@@ -170,6 +170,37 @@ def run():
     print(f"RESULT base={base_acc:.3f} trained={tuned_acc:.3f} delta={delta:+.3f} "
           f"({'PASS' if delta > 0.02 else 'FAIL'})", flush=True)
 
+    from hd_laya.data_gen import gen_dataset
+    from laya.train import encode_state, make_item, to_internal, target_from_expected
+    # Calibrate on a held-out set
+    print("Calibrating...", flush=True)
+    agent.model.eval()
+    calib_items_raw = gen_dataset(400, K, seed=2000)
+    calib_items = []
+    for it in calib_items_raw:
+        q = to_internal("q", it["questions"]["q"])
+        state_ids = encode_state(tok, it["state"], MAX_LEN)
+        target = target_from_expected(q, it["expected"])
+        d, err = make_item(tok, q, target, state_ids, HEAD_MAX_LEN, max_len=MAX_LEN)
+        if d is not None:
+            calib_items.append(d)
+    from laya.train import calibration_records
+    from laya.calibrate import fit_temperature_map
+    device = torch.device(DEVICE)
+    records = calibration_records(agent.model, tok, calib_items, device, MAX_LEN, HEAD_MAX_LEN,
+                                  batch_size=16, parallel=False)
+    temp_map = fit_temperature_map(records)
+    print(f"calibration done: {temp_map}", flush=True)
+
+    # Save calibrated checkpoint
+    tuned_sd = {k: v for k, v in agent.model.state_dict().items() if not k.startswith("encoder.")}
+    tuned_sd["temperature"] = torch.tensor(temp_map["temperature"])
+    ckpt_path = os.path.join(OUT_DIR, "hd_laya_trained_calibrated.pt")
+    torch.save({"state_dict": tuned_sd, "losses": losses, "K": K,
+                "n_items": len(items), "epochs": EPOCHS,
+                "calibration": temp_map}, ckpt_path)
+    print(f"Calibrated checkpoint saved: {ckpt_path}", flush=True)
+
 
 if __name__ == "__main__":
     run()

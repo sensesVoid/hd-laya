@@ -21,7 +21,7 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_REF = "c2ec6f3"  # pinned by sync_bundles.py
+DEFAULT_REF = "3bd3bac"  # pinned by sync_bundles.py
 PKG_REF = os.environ.get("HD_LAYA_REF", DEFAULT_REF)
 LAYA_PIN = os.environ.get("LAYA_PIN", "0.4.35")
 
@@ -72,8 +72,8 @@ N_PER_K = 16 if SMOKE else int(os.environ.get("N_PER_K", "256"))
 MAX_LEN = int(os.environ.get("MAX_LEN", "512"))
 HEAD_MAX_LEN = int(os.environ.get("HEAD_MAX_LEN", "192"))
 MAX_OPTIONS = int(os.environ.get("MAX_OPTIONS", "20"))
-Z_BAR = float(os.environ.get("Z_BAR", "5.0"))
-CKPT_NAME = "hd_laya_trained.pt"
+Z_BAR = float(os.environ.get("Z_BAR", "1.5"))
+CKPT_NAME = os.environ.get("CKPT_NAME", "hd_laya_trained_calibrated.pt")
 HF_REPO = os.environ.get("HF_REPO", "geraldaton20/hd-laya")
 CKPT_PATH_ENV = os.environ.get("CHECKPOINT_PATH", "")
 
