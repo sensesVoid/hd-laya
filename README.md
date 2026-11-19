@@ -91,6 +91,22 @@ not as an improvement. The gate for any future training claim is a held-out
 accuracy delta at matched coverage — never training loss, which is stochastic
 under RLCD and swung 5.38 → 1.10 → 2.42 while barely moving the weights.
 
+## Real-world benchmarks
+
+| dataset | intents | base laya | hd-laya trained | delta | index recall@20 |
+|---|---|---|---|---|---|
+| BANKING77 | 77 | 4.0% | 24.0% | +20.0% | ~1.0 |
+| CLINC150 | 151 | 20.0% | 3.3% | −16.7% | 0.75 |
+
+**BANKING77** (50 items): base laya is at chance (4% for 77-way). hd-laya
+narrows to 20 via HDC and achieves 24% — a 6× improvement. The HDC index
+achieves ~100% recall@20 on BANKING77.
+
+**CLINC150** (30 items): base laya gets 20% (well above chance for 151-way).
+hd-laya gets 3.3% because the HDC index only achieves 75% recall@20 on
+CLINC150's more semantically diverse intents. When the correct intent isn't
+in the narrowed set, the model can't recover.
+
 ## Layout
 
 - `hd_laya/` — `hv`, `index`, `workspace`, `zgate`, `agent`, `bench`,

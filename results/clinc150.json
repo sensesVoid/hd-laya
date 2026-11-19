@@ -1,0 +1,10 @@
+{
+  "dataset": "CLINC150",
+  "n_items": 30,
+  "n_intents": 151,
+  "base_accuracy": 0.2,
+  "base_refusal": 0.0,
+  "hd_accuracy": 0.03333333333333333,
+  "hd_refusal": 0.0,
+  "delta": -0.16666666666666669
+}
